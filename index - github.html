@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Global Sea Level</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <!-- Mapbox GL JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js"></script>
+    <!-- Load the `mapbox-gl-geocoder` plugin. -->
+    <script
+        src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet"
+        href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.css"
+        type="text/css">
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: block;
+        }
+
+        #navbar-head {
+            max-height: 56px;
+        }
+
+        #map {
+            position: absolute;
+            top: 56px;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar Start -->
+    <nav id="navbar-head" class="navbar navbar-expand-lg navbar-dark bg-dark shadow">
+        <div class="container">
+            <a class="navbar-brand" href="https://geoit.dev/">
+                <img src="https://geoit.dev/assets/img/brand/logo.png" alt="geoit-dev-logo" height="24"
+                    class="d-inline-block align-text-top">
+                Global Sea Level
+            </a>
+        </div>
+    </nav>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Basemap select -->
+    <div id="basemap" class="mapboxgl-ctrl">
+        <select id="basemap-select" class="form-select" aria-label="Basemap" onchange="changeBasemap(this)">
+            <option selected value='mapbox://styles/mapbox-map-design/ckhqrf2tz0dt119ny6azh975y'>Default</option>
+            <option value="mapbox://styles/mapbox/satellite-v9">Satellite</option>
+            <option value="mapbox://styles/mapbox/light-v10">Light</option>
+            <option value="mapbox://styles/mapbox/dark-v10">Dark</option>
+            <option value="mapbox://styles/mapbox/streets-v11">Streets</option>
+            <option value="mapbox://styles/mapbox/outdoors-v11">Outdoors</option>
+        </select>
+    </div>
+
+    <!-- Layer Setting -->
+    <div id="layer" class="mapboxgl-ctrl">
+        <div class="accordion" id="layer-accordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" style="padding: 0.5rem 1rem;"
+                        data-bs-toggle="collapse" data-bs-target="#layer-collapse" aria-expanded="true"
+                        aria-controls="layer-collapse">
+                        Layer &nbsp; &nbsp;
+                    </button>
+                </h2>
+                <div id="layer-collapse" class="accordion-collapse collapse" data-bs-parent="#layer-accordion">
+                    <div class="accordion-body">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="base-layer"
+                                onchange="hideShowLayer(this)" checked>
+                            <label class="form-check-label" for="base-layer">Sea Level</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="add-3d-buildings"
+                                onchange="hideShowLayer(this)" checked>
+                            <label class="form-check-label" for="add-3d-buildings">3D Building</label>
+                        </div>
+                        <div class="form-check">
+                            <label class="form-check-label" for="flexSwitchCheckChecked">Sea Level Minimum Zoom</label>
+                            <select id="min-zoom-select" class="form-select form-select-sm" style="width: fit-content;"
+                                aria-label="min-zoom-select" onchange="changeSeaLevelMinZoom(this)">
+                                <option selected value='9'>9</option>
+                                <option value="8">8</option>
+                                <option value="7">7</option>
+                                <option value="6">6</option>
+                                <option value="5">5</option>
+                                <option value="4">4</option>
+                                <option value="3">3</option>
+                                <option value="2">2</option>
+                                <option value="1">1</option>
+                            </select>
+                            <p>*Sea level in small zoom number<br />will show a bad results.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Water elevation range -->
+    <div id="water-slider" class="mapboxgl-ctrl bg-light rounded p-2 position-relative" style="max-width: 6em;">
+        <select class="form-select form-select-sm mb-2 text-center"
+            style="width: 4em; padding: 0.25em; background-image: unset;" aria-label="Slider Water"
+            onchange="changeWaterLevelMax(this)">
+            <option selected value='70'>70</option>
+            <option value="100">100</option>
+            <option value="1000">1000</option>
+            <option value="5000">5000</option>
+            <option value="10000">10000</option>
+        </select>
+        <input id="water-level-range" type="range" orient="vertical" class="form-control-range mx-auto w-100 danger"
+            min="0" max="70" value="0" onchange="changeSlider(this)" style="-webkit-appearance: slider-vertical">
+        <div class="fs-6 position-absolute"
+            style="bottom: 30%; right: 0.2em; writing-mode: vertical-rl; text-orientation: mixed; transform: scaleX(-1) scaleY(-1);">
+            Sea Level :
+            <span id="water-level-output" class="fw-bold">0</span>
+        </div>
+        <p class="text-center m-0 fw-bold fs-6">0</p>
+    </div>
+
+    <!-- Fly 3D and Top button -->
+    <div id="zoom-map" class="mapboxgl-ctrl mapboxgl-ctrl-group">
+        <button type="button" class="btn btn-light" onclick="zoom3D()"
+            style="font-size: inherit; font-weight: bold;">3D</button>
+        <button type="button" class="btn btn-light" onclick="zoomTop()"
+            style="font-size: inherit; font-weight: bold;">TOP</button>
+    </div>
+
+    <!-- Add comment button -->
+    <div id="comment-fab" class="mapboxgl-ctrl">
+        <button type="button" class="btn btn-outline-light btn-lg bg-success" data-bs-toggle="offcanvas"
+            data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">
+            <i class="bi bi-chat-right-quote-fill"></i>
+        </button>
+    </div>
+
+    <!-- About adnd Comment window -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight" aria-labelledby="offcanvasRightLabel">
+        <div class="offcanvas-header">
+            <h5 id="offcanvasRightLabel">Menu</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="pills-about-tab" data-bs-toggle="pill"
+                        data-bs-target="#pills-about" type="button" role="tab" aria-controls="pills-home"
+                        aria-selected="true">About</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="pills-comment-tab" data-bs-toggle="pill"
+                        data-bs-target="#pills-comment" type="button" role="tab" aria-controls="pills-profile"
+                        aria-selected="false">Discussion</button>
+                </li>
+            </ul>
+            <div class="tab-content" id="pills-tabContent">
+                <div class="tab-pane fade show active" id="pills-about" role="tabpanel"
+                    aria-labelledby="pills-home-tab">
+                    <p><b>Global sea level</b> (this webgis) is a simple webgis for visualizing sea level rising based
+                        on DEM data. This was
+                        created using <a href="https://mapbox.com">Mapbox</a> DEM data and simple polygon layer
+                        (rectangle 4
+                        point polygon covering all over the world) by playing/changing the elevation a.k.a extrude
+                        polygon.</p>
+                    <p>Because of <b>Climate Change</b>, global mean sea level has risen about 8–9 inches (21–24
+                        centimeters) since 1880, with about a
+                        third of that coming in just the last two and a half decades. The rising water level is mostly
+                        due to a combination of melt water from glaciers and ice sheets and thermal expansion of
+                        seawater as it warms. In 2020, global mean sea level was 91.3 millimeters (3.6 inches) above the
+                        1993 average, making it the highest annual average in the satellite record (1993-present). <a
+                            href="https://www.climate.gov/news-features/understanding-climate/climate-change-global-sea-level">Source</a>
+                    </p>
+                    <p>
+
+                        There is still some uncertainty about the full volume of glaciers and ice caps on Earth, but if
+                        all of them were to melt, global sea level would rise approximately <b>70 meters</b>
+                        (approximately 230
+                        feet), flooding every coastal city on the planet. <a
+                            href="https://www.usgs.gov/faqs/how-would-sea-level-change-if-all-glaciers-melted?qt-news_science_products=0#qt-news_science_products">Source</a>
+                    </p>
+                    <p>This webgis was created using these library :
+                    <ul>
+                        <li><a href="https://www.mapbox.com/mapbox-gljs">Mapbox GL JS</a> for map visualizing</li>
+                        <li><a href="https://getbootstrap.com/">Bootstrap 5</a> for frontend design</li>
+                        <li><a href="https://github.com/mourner/suncalc">Suncalc JS</a> for getting sun position in 3D
+                            view</li>
+                        <li><a href="https://disqus.com/">Disqus</a> for adding discussion/comment section</li>
+                        <li><a href="https://console.firebase.google.com/">Google Firebase</a> for hosting site</li>
+                        <li><a href="https://analytics.google.com/">Google Analytics</a></li>
+                    </ul>
+                    </p>
+                    <p>The data used :
+                    <ul>
+                        <li><a href="https://docs.mapbox.com/vector-tiles/reference/mapbox-traffic-v1/">Mapbox
+                                Terrain</a> as main DEM data</li>
+                        <li><a href="https://docs.mapbox.com/api/maps/styles/#mapbox-styles">Mapbox Styles</a> as
+                            basemap</li>
+                        <li><a href="https://github.com/Alf-Anas/global-sea-level/blob/main/base.geojson">World
+                                Rectangle Polygon</a> uploaded to mapbox studio for creating vector tiles</li>
+                        <li><a href="https://www.openstreetmap.org/">3D Building </a> from mapbox too, but based on
+                            Openstreetmap building height data</li>
+                    </ul>
+                    </p>
+                    <p>Source Code : <a href="https://github.com/Alf-Anas/global-sea-level">Github</a>
+                        <br />
+                        Website : <a href="https://geoit.dev">GeoIT Developer</a>
+                    </p>
+                    <p><b>Disclaimer: Please note that this global sea level map on its own is not sufficient for
+                            analysis of flood risk since there are many other factors involved.
+                            <br /> And because of this web data simplicity(using only extrude polygon), there will be
+                            data display error in smallest
+                            zoom number, so it is better to zoom as high as possible.</b></p>
+
+                    <div class="border-bottom border-warning mb-3"></div>
+                    <div style="margin-bottom: 1.5em;">
+                        <a href="https://trakteer.id/alf-anas" target="_blank"><img id="wse-buttons-preview"
+                                src="https://cdn.trakteer.id/images/embed/trbtn-red-1.png"
+                                style="border: 0px; height: 43px; margin: 0.5em;" alt="Trakteer Saya"></a>
+                        <a href="https://www.buymeacoffee.com/alf.anas" target="_blank"><img
+                                src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee"
+                                style="height: 40px !important;width: 145px !important; margin: 0.5em;"></a>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="pills-comment" role="tabpanel" aria-labelledby="pills-profile-tab">
+                    <div id="disqus_thread"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Start Script -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js"></script>
+    <script>
+
+        let firstLoad = true;
+        const initLngLatCenter = [106.845169, -6.150060];
+        mapboxgl.accessToken = YOUR_MAPBOX_ACCESS_TOKEN;
+        const map = new mapboxgl.Map({
+            container: 'map',
+            zoom: 18,
+            bearing: 30,
+            pitch: 75,
+            center: initLngLatCenter,
+            style: document.getElementById("basemap-select").value,
+        });
+
+        // Search map control
+        map.addControl(
+            new MapboxGeocoder({
+                accessToken: mapboxgl.accessToken,
+                mapboxgl: mapboxgl
+            }), 'top-left'
+        );
+
+        // Map control basic
+        map.addControl(new mapboxgl.NavigationControl());
+        map.addControl(
+            new mapboxgl.GeolocateControl({
+                positionOptions: {
+                    enableHighAccuracy: true
+                },
+                trackUserLocation: true,
+                showUserHeading: true
+            })
+        );
+
+        const popup = new mapboxgl.Popup({
+            closeButton: true,
+            closeOnClick: false
+        });
+
+        function addMapSource() {
+            map.addSource('mapbox-dem', {
+                'type': 'raster-dem',
+                'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                'tileSize': 512,
+                'maxzoom': 14
+            });
+
+            // Water polygon data
+            map.addSource("base", {
+                'type': 'vector',
+                'url': YOUR_BASE_URL_VECTOR_TILE,
+            });
+        }
+
+        function addMapLayer() {
+            // add the DEM source as a terrain layer with exaggerated height
+            map.setTerrain({
+                'source': 'mapbox-dem',
+                'exaggeration': 1,
+            });
+
+            // add layer water polygon
+            map.addLayer({
+                'id': "base-layer",
+                'type': "fill-extrusion",
+                'source': "base",
+                'source-layer': 'base-7z7pcv',
+                'minzoom': parseInt(document.getElementById("min-zoom-select").value),
+                'paint': {
+                    "fill-extrusion-color": "#7fcdff",
+                    "fill-extrusion-base": 0,
+                    "fill-extrusion-height": 0,
+                    "fill-extrusion-opacity": 0.5,
+                },
+            });
+
+            // add a sky layer that will show when the map is highly pitched
+            map.addLayer({
+                'id': 'sky',
+                'type': 'sky',
+                'paint': {
+                    'sky-type': 'atmosphere',
+                    'sky-atmosphere-sun': [0.0, 0.0],
+                    'sky-atmosphere-sun-intensity': 15
+                }
+            });
+
+            // add 3D bulding layer
+            map.addLayer({
+                'id': 'add-3d-buildings',
+                'source': 'composite',
+                'source-layer': 'building',
+                'filter': ['==', 'extrude', 'true'],
+                'type': 'fill-extrusion',
+                'minzoom': 11,
+                'paint': {
+                    'fill-extrusion-color': '#f6f2ef',
+                    'fill-extrusion-height': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        15,
+                        0,
+                        15.05,
+                        ['get', 'height']
+                    ],
+                    'fill-extrusion-base': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        15,
+                        0,
+                        15.05,
+                        ['get', 'min_height']
+                    ],
+                    'fill-extrusion-opacity': 0.6
+                }
+            });
+        }
+
+        map.on('style.load', () => {
+            addMapSource();
+            addMapLayer();
+
+            if (firstLoad) {
+                // Move basemap and layer button under search
+                const mapControlTopLeft = document.getElementsByClassName("mapboxgl-ctrl-top-left")[0];
+                mapControlTopLeft.appendChild(document.getElementById("basemap"));
+                mapControlTopLeft.appendChild(document.getElementById("layer"));
+                mapControlTopLeft.appendChild(document.getElementById("water-slider"));
+
+                // Move zoom 3d and top under zoom
+                const mapControlTopRight = document.getElementsByClassName("mapboxgl-ctrl-top-right")[0];
+                mapControlTopRight.appendChild(document.getElementById("zoom-map"))
+
+                // Move Comment Button on top attribution
+                const mapControlBottomRight = document.getElementsByClassName("mapboxgl-ctrl-bottom-right")[0];
+                mapControlBottomRight.prepend(document.getElementById("comment-fab"))
+
+                // Set Height in water slider-range
+                const mapControlBottomLeft = document.getElementsByClassName("mapboxgl-ctrl-bottom-left")[0];
+                const addHeight = mapControlBottomLeft.offsetTop - mapControlTopLeft.offsetHeight;
+                const waterLevelRange = document.getElementById("water-level-range");
+                waterLevelRange.style.height = waterLevelRange.offsetHeight + addHeight - mapControlBottomLeft.offsetHeight + "px";
+
+                // show popup on map click
+                map.on('click', (e) => {
+                    const terrainElevation = map.queryTerrainElevation(e.lngLat, { exaggerated: false })
+                    const elevColor = terrainElevation < 0 ? "#ff0000" : "#00cc00"
+                    const popupHTML = "[" + e.lngLat.lng.toFixed(6) + ", " + e.lngLat.lat.toFixed(6) + "]" + "<br/><b style='color: " + elevColor + ";'>Elevation : " + terrainElevation.toFixed(2) + " m</b>"
+                    popup.setLngLat(e.lngLat).setHTML(popupHTML).addTo(map);
+                });
+
+                map.on('moveend', () => {
+                    // Change sky atmosphere in high pitch
+                    if (map.getPitch() > 67) {
+                        updateSunPosition(getSunPosition(new Date()));
+                    }
+                });
+                firstLoad = false;
+            }
+        });
+
+        function updateSunPosition(sunPos) {
+            map.setPaintProperty('sky', 'sky-atmosphere-sun', sunPos);
+        }
+
+        // Get sun position using third party library
+        function getSunPosition(date) {
+            const center = map.getCenter();
+            const sunPos = SunCalc.getPosition(
+                date || Date.now(),
+                center.lat,
+                center.lng
+            );
+            const sunAzimuth = 180 + (sunPos.azimuth * 180) / Math.PI;
+            const sunAltitude = 90 - (sunPos.altitude * 180) / Math.PI;
+            return [sunAzimuth, sunAltitude];
+        }
+
+        function changeSlider(e) {
+            map.setPaintProperty("base-layer", 'fill-extrusion-height', parseInt(e.value));
+            document.getElementById("water-level-output").innerText = map.getPaintProperty("base-layer", 'fill-extrusion-height');
+        }
+
+        function changeWaterLevelMax(e) {
+            document.getElementById("water-level-range").max = e.value;
+        }
+
+        function changeBasemap(e) {
+            map.setStyle(e.value);
+        }
+
+        function changeSeaLevelMinZoom(e) {
+            map.setLayerZoomRange('base-layer', parseInt(e.value), 24);
+        }
+
+        function hideShowLayer(e) {
+            const visibility = e.checked ? "visible" : "none"
+            map.setLayoutProperty(e.id, 'visibility', visibility);
+        }
+
+        function zoom3D() {
+            const center = map.getCenter();
+            map.flyTo({
+                center: center,
+                zoom: 18,
+                bearing: Math.floor(Math.random() * 360),
+                pitch: 75,
+                essential: true
+            });
+        }
+
+        function zoomTop() {
+            const center = map.getCenter();
+            map.flyTo({
+                center: center,
+                zoom: 5,
+                bearing: 0,
+                pitch: 0,
+                essential: true
+            });
+        }
+    </script>
+
+    <!-- Display discuss comment -->
+    <script>
+        /**
+        *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+        *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables    */
+
+        var disqus_config = function () {
+            this.page.url = window.location.href;
+            this.page.identifier = PAGE_IDENTIFIER;
+        };
+
+        (function () { // DON'T EDIT BELOW THIS LINE
+            var d = document, s = d.createElement('script');
+            s.src = 'https://YOUR_DISCUS_SITE_HERE.disqus.com/embed.js';
+            s.setAttribute('data-timestamp', +new Date());
+            (d.head || d.body).appendChild(s);
+        })();
+    </script>
+    <noscript>
+        Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+    </noscript>
+
+</body>
+
+</html>
